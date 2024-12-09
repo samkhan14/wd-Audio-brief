@@ -597,13 +597,11 @@ function displayCurrentQuestion() {
         recordBtn.disabled = true;
         recordIcon.style.color = "gray";
         isQuestionDisplayed = false;
-
         // Scroll to the questionLoader element
         questionLoader.scrollIntoView({ behavior: "smooth", block: "center" });
 
           // Stop the loader animation
           loader.style.animation = "none";
-
         // player container for question
         const textPlayerContainer = document.createElement("div");
         textPlayerContainer.classList.add("text-player-container");
@@ -635,13 +633,8 @@ function displayCurrentQuestion() {
         });
 
         setTimeout(() => {
-
             // Display the question text with typewriter effect
             typeWriter(text, questionText);
-
-
-
-
         }, 3000);
 
     }
@@ -731,6 +724,7 @@ style.innerHTML = `
 
      .text-player-container img {
         width: 100%;
+        margin-top: -26px;
         }
 
     .animate-wave .default-text-wave {
