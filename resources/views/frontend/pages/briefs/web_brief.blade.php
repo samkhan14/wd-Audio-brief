@@ -712,6 +712,7 @@
                 height: 1px;
             }
 
+
             .bar {
                 animation-name: wave-lg;
                 animation-iteration-count: infinite;
@@ -830,6 +831,9 @@
                 margin: 0;
             }
 
+            .question .textArea {
+                flex-direction: column-reverse;
+            }
             .firstIntroScreen .textArea>h2 {
                 font-size: 18px;
                 line-height: 1.3;

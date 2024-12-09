@@ -583,11 +583,9 @@ function showOnlyBoxAsLoader() {
 }
 
 function displayCurrentQuestion() {
-
     const questionLoader = document.querySelector(".currentQuestion");
 
     if (questionLoader) {
-
         const text = questions[currentIndex];
         const textArea = questionLoader.querySelector(".textArea");
         const questionText = questionLoader.querySelector("p");
@@ -597,12 +595,14 @@ function displayCurrentQuestion() {
         recordBtn.disabled = true;
         recordIcon.style.color = "gray";
         isQuestionDisplayed = false;
+
         // Scroll to the questionLoader element
         questionLoader.scrollIntoView({ behavior: "smooth", block: "center" });
 
-          // Stop the loader animation
-          loader.style.animation = "none";
-        // player container for question
+        // Stop the loader animation
+        loader.style.animation = "none";
+
+        // Player container for question
         const textPlayerContainer = document.createElement("div");
         textPlayerContainer.classList.add("text-player-container");
         textArea.appendChild(textPlayerContainer);
@@ -613,142 +613,160 @@ function displayCurrentQuestion() {
         playButton.innerHTML += "<i class='fa-solid fa-pause pause-icon' style='display: none;'></i>";
         textPlayerContainer.appendChild(playButton);
 
-       // questionText.innerHTML += " ";
         // Function to create the wave container dynamically
         function createTextWaveContainer() {
             const textWaveContainer = document.createElement('div');
             textWaveContainer.classList.add('text-wave-container');
 
             // Add the default wave image for UI
-            textWaveContainer.innerHTML = '<div class="default-text-wave"><img src="/frontend/assets/images/wave1.png" alt="Wave Image"></div>';
-            // Append the wave container to the questionText div
+            textWaveContainer.innerHTML = '<div class="default-text-wave"><img src="/frontend/assets/images/wave1.png"></div>';
+
+            // Append the wave container to the textPlayerContainer div
             textPlayerContainer.appendChild(textWaveContainer);
             return textWaveContainer;
         }
 
         const textWaveContainer = createTextWaveContainer(); // Create the default wave container
 
+        // Adding play button functionality
         playButton.addEventListener("click", () => {
-           // togglePlayPause(playButton, text, textWaveContainer); // Pass the wave container to handle animation
+            togglePlayPause(playButton, text, textWaveContainer); // Pass the wave container to handle animation
         });
 
         setTimeout(() => {
             // Display the question text with typewriter effect
             typeWriter(text, questionText);
         }, 3000);
-
     }
-
 }
 
-// Function to toggle play/pause
-function togglePlayPause(playButton, text, textWaveContainer) {
+// Function to calculate speech duration based on text length
+function calculateAudioDuration(text) {
+    const words = text.trim().split(/\s+/); // Split by whitespace
+    const wordCount = words.length;
+    return wordCount / 2.5; // Estimate duration (seconds)
+}
 
+// Function to start the bar animation
+function startBarAnimation(bar, audioDuration) {
+    if (bar) {
+        console.log("Starting bar animation...");
+        bar.style.transition = `height ${audioDuration}s linear`; // Set animation duration dynamically
+        bar.style.height = "100%"; // Animate to full height
+    }
+}
+
+// Function to reset the bar animation
+function resetBarAnimation(bar) {
+    if (bar) {
+        console.log("Resetting bar animation...");
+        bar.style.transition = "none"; // Remove transition
+        bar.style.height = "0"; // Reset height
+    }
+}
+
+// Play button logic
+function togglePlayPause(playButton, text, bar) {
     const playIcon = playButton.querySelector(".play-icon");
     const pauseIcon = playButton.querySelector(".pause-icon");
 
-    // Check if speech synthesis is supported
     if (typeof responsiveVoice !== "undefined") {
-
         if (responsiveVoice.isPlaying()) {
-            // If the voice is playing, pause it and show play icon
+            // Pause the speech and reset the bar
             responsiveVoice.pause();
+            resetBarAnimation(bar);
             playIcon.style.display = "inline-block";
             pauseIcon.style.display = "none";
-
-            // Stop wave animation when pausing
-            stopWaveAnimation(textWaveContainer);
         } else {
-            // If the voice is not playing, speak the text, generate waveform, and show pause icon
+            // Calculate audio duration based on text
+            const audioDuration = calculateAudioDuration(text);
+
+            // Play speech and animate bar
             responsiveVoice.speak(text, "US English Female", {
-
-                onstart: function() {
-                    speakAndGenerateWaveform(text, textWaveContainer); // Start generating waveform
+                onstart: function () {
+                    console.log("Speech started for:", text);
+                    startBarAnimation(bar, audioDuration);
                 },
-
-                onend: function() {
-                    // Callback for when speech ends, show play icon again
+                onend: function () {
+                    console.log("Speech ended");
+                    resetBarAnimation(bar);
                     playIcon.style.display = "inline-block";
                     pauseIcon.style.display = "none";
-
-                    // Stop wave animation when finished
-                    stopWaveAnimation(textWaveContainer);
-                }
-
+                },
             });
 
             playIcon.style.display = "none";
             pauseIcon.style.display = "inline-block";
         }
-
     } else {
         console.error("ResponsiveVoice is not available.");
     }
 }
 
-// Function to start generating waveform animation
-function speakAndGenerateWaveform(text, waveContainer) {
-    console.log("Generating waveform for: " + text);
-
-    // Apply animation to the wave
-    waveContainer.classList.add("animate-wave");
+// Function to start wave animation
+function startWaveAnimation(textWaveContainer) {
+    // Check if textWaveContainer is a valid element
+    if (textWaveContainer) {
+        console.log('Starting wave animation...', textWaveContainer);
+        // Add the 'animate-wave' class to start the animation
+        textWaveContainer.classList.add("animate-wave");
+        console.log('Class added:', textWaveContainer.classList);
+    } else {
+        console.error('textWaveContainer is not defined or invalid.');
+    }
 }
 
-// Function to stop waveform animation
-function stopWaveAnimation(waveContainer) {
-    waveContainer.classList.remove("animate-wave");
+// Function to stop wave animation
+function stopWaveAnimation(textWaveContainer) {
+    // Check if textWaveContainer is a valid element
+    if (textWaveContainer) {
+        console.log('Stopping wave animation...', textWaveContainer);
+        // Remove the 'animate-wave' class to stop the animation
+        textWaveContainer.classList.remove("animate-wave");
+        console.log('Class removed:', textWaveContainer.classList);
+    } else {
+        console.error('textWaveContainer is not defined or invalid.');
+    }
 }
 
 // CSS for wave animation
 const style = document.createElement("style");
 style.innerHTML = `
-    .text-wave-container {
-        position: relative;
-        height: 20px;
-        width: 70%;
-        margin-top: 15px;
-    }
+   .text-wave-container {
+    position: relative;
+    height: 20px;
+    width: 70%;
+    margin-top: 15px;
+}
 
-    .default-text-wave {
-        width: 100%;
-        height: 2px;
-        background-color: #3c7cff;
-        // background: linear-gradient(90deg, rgba(0, 123, 255, 0.5) 25%, rgba(0, 123, 255, 0.2) 50%, rgba(0, 123, 255, 0.5) 75%);
-        // background-size: 200% 100%;
-        // animation: waveAnimation 1.5s infinite linear;
-    }
+.default-text-wave {
+    width: 100%;
+    height: 2px;
+    background-color: #3c7cff;
+}
 
-    .text-player-container {
-        display: flex;
-    }
+.text-player-container {
+    display: flex;
+}
 
-     .text-player-container img {
-        width: 100%;
-        margin-top: -26px;
-        }
+.text-player-container img {
+    width: 100%;
+    margin-top: -26px;
+}
 
-    .animate-wave .default-text-wave {
-        animation: waveAnimation 1.5s infinite linear;
-    }
+.animate-wave .default-text-wave {
+    animation: waveAnimation 1.5s infinite linear;
+}
 
-    @keyframes waveAnimation {
-        0% {
-            background-position: -200% 0;
-        }
-        100% {
-            background-position: 200% 0;
-        }
+@keyframes waveAnimation {
+    0% {
+        background-position: -200% 0;
     }
+    100% {
+        background-position: 200% 0;
+    }
+}
 
-    .play-question-button {
-        background: none;
-        border: none;
-        cursor: pointer;
-    }
-
-    .play-icon, .pause-icon {
-        font-size: 24px;
-    }
 `;
 document.head.appendChild(style);
 
