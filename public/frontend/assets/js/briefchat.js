@@ -227,6 +227,7 @@ recordBtn.addEventListener("click", async () => {
                 const audioBlob = new Blob(audioChunks, {
                     type: "audio/webm",
                 });
+                console.log('audioChunks in record btn funct', audioChunks);
                 audioChunks = [];
                 console.log("Audio Blob:", audioBlob);
                 createAudioPlayer(audioBlob);
@@ -339,6 +340,7 @@ const recordingWaveStop = () => {
 // Save the audio file and append to chat
 const createAudioPlayer = (audioBlob) => {
     const audioUrl = URL.createObjectURL(audioBlob);
+    console.log("Audio URL in createAudioPlayer funct:", audioUrl);
     const audio = document.createElement("audio");
     audio.src = audioUrl;
 
@@ -414,6 +416,7 @@ const createAudioPlayer = (audioBlob) => {
 
     const wrapAudioPlayer = document.createElement("div");
     wrapAudioPlayer.classList.add("wrap-audio-player");
+
 
     wrapAudioPlayer.appendChild(playPauseBtn);
     wrapAudioPlayer.appendChild(waveformContainer);
@@ -585,9 +588,10 @@ function showOnlyBoxAsLoader() {
 function displayCurrentQuestion() {
     const questionLoader = document.querySelector(".currentQuestion");
 
+    console.log("questionLoader", questionLoader);
+
     if (questionLoader) {
         const text = questions[currentIndex];
-        const textArea = questionLoader.querySelector(".textArea");
         const questionText = questionLoader.querySelector("p");
         const loader = questionLoader.querySelector(".loader");
 
@@ -599,176 +603,160 @@ function displayCurrentQuestion() {
         // Scroll to the questionLoader element
         questionLoader.scrollIntoView({ behavior: "smooth", block: "center" });
 
-        // Stop the loader animation
-        loader.style.animation = "none";
-
-        // Player container for question
-        const textPlayerContainer = document.createElement("div");
-        textPlayerContainer.classList.add("text-player-container");
-        textArea.appendChild(textPlayerContainer);
-
-        const playButton = document.createElement("button");
-        playButton.classList.add("play-question-button");
-        playButton.innerHTML = "<i class='fa-solid fa-play play-icon'></i>";
-        playButton.innerHTML += "<i class='fa-solid fa-pause pause-icon' style='display: none;'></i>";
-        textPlayerContainer.appendChild(playButton);
-
-        // Function to create the wave container dynamically
-        function createTextWaveContainer() {
-            const textWaveContainer = document.createElement('div');
-            textWaveContainer.classList.add('text-wave-container');
-
-            // Add the default wave image for UI
-            textWaveContainer.innerHTML = '<div class="default-text-wave"><img src="/frontend/assets/images/wave1.png"></div>';
-
-            // Append the wave container to the textPlayerContainer div
-            textPlayerContainer.appendChild(textWaveContainer);
-            return textWaveContainer;
-        }
-
-        const textWaveContainer = createTextWaveContainer(); // Create the default wave container
-
-        // Adding play button functionality
-        playButton.addEventListener("click", () => {
-            togglePlayPause(playButton, text, textWaveContainer); // Pass the wave container to handle animation
-        });
-
+        // Set up the question text and display the audio player
         setTimeout(() => {
             // Display the question text with typewriter effect
             typeWriter(text, questionText);
-        }, 3000);
+
+            // Stop the loader animation
+            loader.style.animation = "none";
+
+            // Add a play button for the question text
+            const playButton = document.createElement("button");
+            playButton.classList.add("play-question-button");
+            playButton.innerHTML = "<i class='fa-solid fa-play play-icon'></i>";
+            playButton.innerHTML +=
+                "<i class='fa-solid fa-pause pause-icon' style='display: none;'></i>";
+
+            // Append play button next to the question text
+            questionText.parentElement.appendChild(playButton);
+
+            // Generate the Blob for the question text
+            generateAudioBlob(text, (audioURL) => {
+                playButton.addEventListener("click", () => {
+                    togglePlayPause(playButton, audioURL);
+                });
+            });
+        }, 1000);
     }
 }
 
-// Function to calculate speech duration based on text length
-function calculateAudioDuration(text) {
-    const words = text.trim().split(/\s+/); // Split by whitespace
-    const wordCount = words.length;
-    return wordCount / 2.5; // Estimate duration (seconds)
-}
+// Function to generate audio Blob from text using SpeechSynthesis
+function generateAudioBlob(text, callback) {
+    if (typeof SpeechSynthesisUtterance !== "undefined") {
+        const audioChunks = [];
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const destination = audioContext.createMediaStreamDestination();
 
-// Function to start the bar animation
-function startBarAnimation(bar, audioDuration) {
-    if (bar) {
-        console.log("Starting bar animation...");
-        bar.style.transition = `height ${audioDuration}s linear`; // Set animation duration dynamically
-        bar.style.height = "100%"; // Animate to full height
+        console.log('SpeechSynthesisUtterance is available.', destination);
+
+        // Check if MediaRecorder is supported
+        if (typeof MediaRecorder === "undefined") {
+            console.error("MediaRecorder is not supported in this browser.");
+            fallbackSpeakText(text); // Fallback for unsupported browsers
+            return;
+        }
+
+        const mediaRecorder = new MediaRecorder(destination.stream, { mimeType: "audio/webm" });
+        console.log('MediaRecorder is available.', mediaRecorder);
+
+        // Collect audio chunks
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+
+        // Process audio Blob when recording stops
+        mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+            console.log('audioChunks in gAB', audioChunks);
+            const audioURL = URL.createObjectURL(audioBlob);
+            console.log('Audio URL:', audioURL);
+            callback(audioURL); // Return the audio URL via callback
+        };
+
+        // Configure speech synthesis
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onend = () => {
+            mediaRecorder.stop();
+            audioContext.close();
+            console.log("Speech synthesis and recording completed.");
+        };
+
+        // Start MediaRecorder and speech synthesis
+        const source = audioContext.createMediaStreamSource(destination.stream);
+        source.connect(destination);
+        mediaRecorder.start();
+        window.speechSynthesis.speak(utterance);
+
+    } else {
+        console.error("SpeechSynthesisUtterance is not available in this browser.");
     }
 }
 
-// Function to reset the bar animation
-function resetBarAnimation(bar) {
-    if (bar) {
-        console.log("Resetting bar animation...");
-        bar.style.transition = "none"; // Remove transition
-        bar.style.height = "0"; // Reset height
-    }
+// Fallback function for speech synthesis (without recording)
+function fallbackSpeakText(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(utterance);
+    console.warn("Fallback: Audio recording is unavailable, speaking text directly.");
 }
 
-// Play button logic
-function togglePlayPause(playButton, text, bar) {
+// Function to toggle play/pause and handle generated Blob URL
+function togglePlayPause(playButton, audioURL) {
+    console.log("Audio URL:", audioURL); // Debugging
+
     const playIcon = playButton.querySelector(".play-icon");
     const pauseIcon = playButton.querySelector(".pause-icon");
 
+    // Find or create an audio element dynamically
+    let audioElement = playButton.querySelector("audio");
+
+    if (!audioElement) {
+        console.log("Creating a new audio element...");
+        audioElement = document.createElement("audio");
+        audioElement.src = audioURL;
+        audioElement.style.display = "none"; // Hide the audio element
+        playButton.appendChild(audioElement);
+
+        // Error handling for audio playback
+        audioElement.addEventListener("error", (e) => {
+            console.error("Audio playback error:", e);
+        });
+
+        // Load audio before playback
+        audioElement.load();
+    }
+
+    // Toggle play/pause state
+    if (audioElement.paused) {
+        console.log("Playing audio...");
+        audioElement.play().then(() => {
+            console.log("Audio is playing.");
+            playIcon.style.display = "none"; // Hide play icon
+            pauseIcon.style.display = "inline-block"; // Show pause icon
+        }).catch((err) => {
+            console.error("Error during audio playback:", err);
+        });
+    } else {
+        console.log("Pausing audio...");
+        audioElement.pause();
+        playIcon.style.display = "inline-block"; // Show play icon
+        pauseIcon.style.display = "none"; // Hide pause icon
+    }
+
+    // Reset icons when playback ends
+    audioElement.onended = () => {
+        playIcon.style.display = "inline-block"; // Show play icon
+        pauseIcon.style.display = "none"; // Hide pause icon
+    };
+}
+
+
+// Function to speak text with ResponsiveVoice.js (fallback)
+function speakTextWithResponsiveVoice(text) {
     if (typeof responsiveVoice !== "undefined") {
-        if (responsiveVoice.isPlaying()) {
-            // Pause the speech and reset the bar
-            responsiveVoice.pause();
-            resetBarAnimation(bar);
-            playIcon.style.display = "inline-block";
-            pauseIcon.style.display = "none";
-        } else {
-            // Calculate audio duration based on text
-            const audioDuration = calculateAudioDuration(text);
-
-            // Play speech and animate bar
-            responsiveVoice.speak(text, "US English Female", {
-                onstart: function () {
-                    console.log("Speech started for:", text);
-                    startBarAnimation(bar, audioDuration);
-                },
-                onend: function () {
-                    console.log("Speech ended");
-                    resetBarAnimation(bar);
-                    playIcon.style.display = "inline-block";
-                    pauseIcon.style.display = "none";
-                },
-            });
-
-            playIcon.style.display = "none";
-            pauseIcon.style.display = "inline-block";
-        }
+        responsiveVoice.speak(text, "US English Female");
     } else {
         console.error("ResponsiveVoice is not available.");
     }
 }
 
-// Function to start wave animation
-function startWaveAnimation(textWaveContainer) {
-    // Check if textWaveContainer is a valid element
-    if (textWaveContainer) {
-        console.log('Starting wave animation...', textWaveContainer);
-        // Add the 'animate-wave' class to start the animation
-        textWaveContainer.classList.add("animate-wave");
-        console.log('Class added:', textWaveContainer.classList);
-    } else {
-        console.error('textWaveContainer is not defined or invalid.');
-    }
-}
+// Populate available voices on page load (optional)
+// if (speechSynthesis !== undefined) {
+//     synth.onvoiceschanged = () => console.log(synth.getVoices());
 
-// Function to stop wave animation
-function stopWaveAnimation(textWaveContainer) {
-    // Check if textWaveContainer is a valid element
-    if (textWaveContainer) {
-        console.log('Stopping wave animation...', textWaveContainer);
-        // Remove the 'animate-wave' class to stop the animation
-        textWaveContainer.classList.remove("animate-wave");
-        console.log('Class removed:', textWaveContainer.classList);
-    } else {
-        console.error('textWaveContainer is not defined or invalid.');
-    }
-}
-
-// CSS for wave animation
-const style = document.createElement("style");
-style.innerHTML = `
-   .text-wave-container {
-    position: relative;
-    height: 20px;
-    width: 70%;
-    margin-top: 15px;
-}
-
-.default-text-wave {
-    width: 100%;
-    height: 2px;
-    background-color: #3c7cff;
-}
-
-.text-player-container {
-    display: flex;
-}
-
-.text-player-container img {
-    width: 100%;
-    margin-top: -26px;
-}
-
-.animate-wave .default-text-wave {
-    animation: waveAnimation 1.5s infinite linear;
-}
-
-@keyframes waveAnimation {
-    0% {
-        background-position: -200% 0;
-    }
-    100% {
-        background-position: 200% 0;
-    }
-}
-
-`;
-document.head.appendChild(style);
+// }
 
 function typeWriter(text, element, speed = 50) {
     let index = 0;
